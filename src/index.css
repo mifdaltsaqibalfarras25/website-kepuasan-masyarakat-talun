@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* --- KONFIGURASI TEMA (TAILWIND V4) --- */
+@theme {
+  /* 1. Definisi Font (Pastikan sudah import Google Fonts di index.html jika perlu) */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* 2. Palet Warna Utama (Sesuai Desain) */
+  --color-brand-blue: #2563eb; /* Biru Utama (Tombol & Icon) - Blue 600 */
+  --color-brand-blue-hover: #1d4ed8; /* Biru Gelap (Hover State) - Blue 700 */
+
+  --color-brand-bg: #eff6ff; /* Latar Belakang Halaman (Ice Blue) */
+  --color-brand-surface: #ffffff; /* Warna Kartu Putih */
+
+  --color-brand-text: #1e293b; /* Warna Teks Utama (Slate 800) */
+  --color-brand-muted: #64748b; /* Warna Teks Abu-abu (Slate 500) */
+
+  --color-input-bg: #f8fafc; /* Background Input/Textarea (Slate 50) */
+  --color-input-border: #e2e8f0; /* Garis Pinggir Input (Slate 200) */
+
+  /* 3. Shadow Custom (Bayangan Halus) */
+  --shadow-card: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+}
+
+/* --- BASE STYLES --- */
+:root {
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- UTILITIES TAMBAHAN --- */
+
+/* 1. Scrollbar Modern (Opsional, agar lebih rapi) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* 2. Tweak untuk elemen Form */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  outline: none; /* Kita handle focus ring pakai Tailwind */
+}
+
+/* 3. Animasi Loading (Opsional) */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
