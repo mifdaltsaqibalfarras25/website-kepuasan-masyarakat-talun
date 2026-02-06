@@ -7,7 +7,7 @@ export default function DashboardPage() {
     totalResponden: 0,
     rataRata: 0,
     totalSaran: 0,
-    chartData: [0, 0, 0, 0, 0], // Data H-4 sampai Hari Ini
+    chartData: [0, 0, 0, 0, 0], // Data 5 hari terakhir
   });
   const [loading, setLoading] = useState(true);
 
@@ -17,48 +17,47 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      // 1. Ambil Semua Responden (untuk Total & Grafik)
+      // 1. Ambil Data Responden
       const { data: respData, error: respError } = await supabase
         .from("respondents")
-        .select("created_at, kritik_saran");
+        .select("tanggal_isi, kritik_saran");
 
       if (respError) throw respError;
 
-      // 2. Ambil Semua Jawaban (untuk Rata-rata Skor)
+      // 2. Ambil Data Jawaban (Skor)
       const { data: ansData, error: ansError } = await supabase
         .from("survey_answers")
         .select("skor");
 
       if (ansError) throw ansError;
 
-      // --- PERHITUNGAN STATISTIK JS ---
+      // --- HITUNG STATISTIK ---
 
-      // A. Total Responden
       const total = respData.length;
-
-      // B. Total Saran (yang tidak kosong)
       const saranCount = respData.filter(
-        (r) => r.kritik_saran && r.kritik_saran.length > 5,
+        (r) => r.kritik_saran && r.kritik_saran.trim().length > 0,
       ).length;
 
-      // C. Rata-rata Skor
       const totalSkor = ansData.reduce((acc, curr) => acc + curr.skor, 0);
       const avg =
         ansData.length > 0 ? (totalSkor / ansData.length).toFixed(1) : "0.0";
 
-      // D. Data Grafik (5 Hari Terakhir)
-      const chart = [0, 0, 0, 0, 0];
-      const today = new Date();
+      // --- GRAFIK (LOGIKA TANGGAL) ---
+      const last5Days = [];
+      for (let i = 4; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last5Days.push(d.toDateString());
+      }
+
+      const chartCounts = [0, 0, 0, 0, 0];
 
       respData.forEach((item) => {
-        const date = new Date(item.created_at);
-        // Hitung selisih hari
-        const diffTime = Math.abs(today - date);
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 5) {
-          // Jika data masuk dalam 5 hari terakhir, masukkan ke array (dibalik urutannya)
-          chart[4 - diffDays] += 1;
+        if (!item.tanggal_isi) return;
+        const itemDateStr = new Date(item.tanggal_isi).toDateString();
+        const index = last5Days.indexOf(itemDateStr);
+        if (index !== -1) {
+          chartCounts[index] += 1;
         }
       });
 
@@ -66,7 +65,7 @@ export default function DashboardPage() {
         totalResponden: total,
         rataRata: avg,
         totalSaran: saranCount,
-        chartData: chart,
+        chartData: chartCounts,
       });
     } catch (error) {
       console.error("Error fetch stats:", error);
@@ -77,8 +76,8 @@ export default function DashboardPage() {
 
   if (loading)
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600" />
+      <div className="flex h-64 items-center justify-center gap-2 text-gray-500">
+        <Loader2 className="animate-spin text-blue-600" /> Memuat Statistik...
       </div>
     );
 
@@ -86,7 +85,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Ringkasan Statistik</h2>
 
-      {/* KARTU STATISTIK */}
+      {/* 1. KARTU STATISTIK */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard
           title="Total Responden"
@@ -108,34 +107,55 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* GRAFIK BATANG MANUAL */}
+      {/* 2. GRAFIK BATANG DINAMIS */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-6">
+        <h3 className="font-semibold text-gray-800 mb-8">
           Tren Pengisian Survei (5 Hari Terakhir)
         </h3>
-        <div className="flex items-end justify-between h-40 gap-4">
+
+        <div className="flex items-end justify-between h-56 gap-4 px-4 pb-2 border-b border-gray-100 relative">
+          {/* Garis Grid Tipis (Opsional, Pemanis Visual) */}
+          <div className="absolute inset-0 pointer-events-none flex flex-col justify-between text-xs text-gray-300 pr-2">
+            <span>Max</span>
+            <span>0</span>
+          </div>
+
           {stats.chartData.map((val, idx) => {
-            // Agar grafik tidak overflow, kita buat skala max 100% (asumsi max sehari 50 orang biar kelihatan barnya)
-            const heightPerc = Math.min(
-              (val / (Math.max(...stats.chartData) || 1)) * 100,
-              100,
-            );
+            // LOGIKA BARU: Cari nilai tertinggi dari data yang ada.
+            // Jika data [0, 1, 2], maka maxVal = 2.
+            // Tinggi batang untuk 2 = (2/2)*100 = 100% (Penuh).
+            // Tinggi batang untuk 1 = (1/2)*100 = 50% (Setengah).
+            const maxVal = Math.max(...stats.chartData) || 1;
+            const heightPerc = (val / maxVal) * 100;
+
             return (
               <div
                 key={idx}
-                className="w-full flex flex-col items-center gap-2 group"
+                className="w-full flex flex-col items-center gap-3 group relative z-10"
               >
-                <div className="relative w-full max-w-[60px] bg-blue-50 rounded-t-lg h-full flex items-end">
+                {/* Batang Grafik */}
+                <div className="relative w-full max-w-[60px] h-full flex items-end">
                   <div
-                    style={{ height: `${heightPerc === 0 ? 2 : heightPerc}%` }}
-                    className={`w-full rounded-t-lg transition-all duration-1000 relative group-hover:opacity-90 ${val > 0 ? "bg-blue-600" : "bg-gray-200"}`}
+                    style={{ height: `${val === 0 ? 0 : heightPerc}%` }}
+                    className={`w-full rounded-t-lg transition-all duration-1000 relative flex justify-center items-end 
+                      ${val > 0 ? "bg-blue-600 group-hover:bg-blue-500 shadow-lg shadow-blue-200" : "bg-transparent"}`}
                   >
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                      {val} Org
-                    </span>
+                    {/* Angka di dalam/atas batang */}
+                    {val > 0 && (
+                      <span className="mb-2 text-xs font-bold text-white">
+                        {val}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Garis dasar jika 0 */}
+                  {val === 0 && (
+                    <div className="absolute bottom-0 w-full h-[2px] bg-gray-200"></div>
+                  )}
                 </div>
-                <span className="text-xs text-gray-500 font-medium">
+
+                {/* Label Hari */}
+                <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
                   {idx === 4 ? "Hari Ini" : `H-${4 - idx}`}
                 </span>
               </div>
